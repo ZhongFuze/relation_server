@@ -14,6 +14,7 @@ use crate::{
 use async_graphql::{Context, InputObject, Object};
 use dataloader::non_cached::Loader;
 use serde::{Deserialize, Serialize};
+use std::str::FromStr;
 use tracing::{event, Level};
 use uuid::Uuid;
 
@@ -239,9 +240,10 @@ impl ExpandIdentityRecord {
         &self,
         _ctx: &Context<'_>,
         #[graphql(
-            desc = "Filter condition for ContractCategory. If not provided or empty array, all category NFTs will be returned."
+            desc = "Filter condition for ContractCategory. If missing or empty, all category NFTs will be returned."
         )]
-        category: Option<Vec<ContractCategory>>,
+        // TODO: need to change back to ContractCategory when frontend migration is done.
+        category: Option<Vec<String>>,
         #[graphql(
             desc = "`limit` used to control the maximum number of records returned by query. It defaults to 100"
         )]
@@ -252,8 +254,24 @@ impl ExpandIdentityRecord {
         offset: Option<u16>,
     ) -> Result<Vec<HoldRecord>> {
         let client = make_http_client();
-        self.nfts(&client, category, limit.unwrap_or(100), offset.unwrap_or(0))
-            .await
+        let parsed_category: Option<Vec<ContractCategory>> = category
+            .map(|v| {
+                v.into_iter()
+                    .map(|s| {
+                        s.to_lowercase()
+                            .parse::<ContractCategory>()
+                            .map_err(Error::from)
+                    })
+                    .collect::<Result<Vec<ContractCategory>>>()
+            })
+            .transpose()?;
+        self.nfts(
+            &client,
+            parsed_category,
+            limit.unwrap_or(100),
+            offset.unwrap_or(0),
+        )
+        .await
     }
 
     async fn owner_address(&self) -> Option<Vec<Address>> {
