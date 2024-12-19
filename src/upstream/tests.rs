@@ -23,14 +23,14 @@ async fn test_batch_fetch_upstream() -> Result<(), Error> {
 
 #[tokio::test]
 async fn test_fetch_all() -> Result<(), Error> {
-    // fetch_all(
-    //     vec![Target::Identity(
-    //         Platform::Ethereum,
-    //         "0xbe577c9e94d6a2598edde9089b78aef5a549cdb8".into(),
-    //     )],
-    //     Some(5),
-    // )
-    // .await?;
+    fetch_all(
+        vec![Target::Identity(
+            Platform::Ethereum,
+            "0x5c51b52694719931919aebb2dccf7ca3447d0608".into(),
+        )],
+        Some(5),
+    )
+    .await?;
 
     // fetch_all(
     //     vec![Target::Identity(
@@ -50,14 +50,14 @@ async fn test_fetch_all() -> Result<(), Error> {
     // )
     // .await?;
 
-    fetch_all(
-        vec![Target::Identity(
-            Platform::Ethereum,
-            "0x934b510d4c9103e6a87aef13b816fb080286d649".into(),
-        )],
-        Some(5),
-    )
-    .await?;
+    // fetch_all(
+    //     vec![Target::Identity(
+    //         Platform::Ethereum,
+    //         "0x85a0456fa2b9621995f099b8adb120a4f077846b".into(),
+    //     )],
+    //     Some(5),
+    // )
+    // .await?;
 
     // fetch_all(
     //     vec![Target::Identity(

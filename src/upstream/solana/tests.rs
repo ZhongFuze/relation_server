@@ -28,9 +28,9 @@ mod tests {
     #[tokio::test]
     async fn test_fetch_resolve_domains() -> Result<(), Error> {
         let client = get_rpc_client(RPC_URL.to_string());
-
-        let res =
-            fetch_resolve_domains(&client, "CLnUobvN8Fy7vhDMkQqNF7STxk5CT7MoePXvkgUGgdc9").await?;
+        let _pubkey = "CLnUobvN8Fy7vhDMkQqNF7STxk5CT7MoePXvkgUGgdc9".to_string();
+        let pubkey = "HKKp49qGWXd639QsuH7JiLijfVW5UtCVY4s1n2HANwEA".to_string();
+        let res = fetch_resolve_domains(&client, &pubkey).await?;
         println!("{:?}", res);
         Ok(())
     }

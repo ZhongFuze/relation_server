@@ -468,6 +468,13 @@ CREATE OR REPLACE QUERY upsert_hyper_vertex(STRING from_str, STRING to_str, INT 
   PRINT @@created_vertices as created_vertices, @@created_hyper_vertices as created_hyper_vertices, final_identity_graph;
 }
 
+CREATE OR REPLACE QUERY delete_ens_reverse() FOR GRAPH SocialGraph SYNTAX v2 {
+  DELETE v FROM Identities:v WHERE v.uuid == "";
+  ens = SELECT v FROM Identities:v WHERE v.platform == "ens" POST-ACCUM v.reverse = false;
+  PRINT(ens.size());
+  DELETE e FROM Identities:s-((Reverse_Resolve>):e)-Identities:t WHERE s.platform == "ethereum" and t.platform == "ens";
+}
+
 CREATE OR REPLACE QUERY delete_graph_all(VERTEX<Identities> p, INT depth=10) FOR GRAPH SocialGraph SYNTAX v2 {
   seed (Identities) = {p};
   identities_graph = SELECT tgt FROM seed-((PartOfIdentitiesGraph>):e)-IdentitiesGraph:tgt;
@@ -494,9 +501,9 @@ CREATE OR REPLACE QUERY delete_graph_inner_connection(VERTEX<Identities> p, INT 
   // DELETE e FROM vertex2delete:s-((Hold_Contract>):e)-Contracts:c;
   // DELETE e FROM vertex2delete:s-((Reverse_Resolve_Contract>):e)-Contracts:c;
   // DELETE e FROM vertex2delete:s-((<Resolve_Contract):e)-Contracts:c;
-  // DELETE e FROM vertex2delete:s-((<Hold_Identity):e)-Identities:t WHERE s.platform != "ens" AND s.platform != "unstoppabledomains";
-  // DELETE e FROM vertex2delete:s-((<Resolve):e)-Identities:t WHERE t.platform != "ens" AND t.platform != "unstoppabledomains";
-  // DELETE e FROM vertex2delete:s-((<Reverse_Resolve):e)-Identities:t WHERE s.platform != "ens" AND s.platform != "unstoppabledomains";
+  // DELETE e FROM vertex2delete:s-((<Hold_Identity):e)-Identities:t WHERE s.platform != "basenames" AND s.platform != "ens";
+  // DELETE e FROM vertex2delete:s-((<Resolve):e)-Identities:t WHERE t.platform != "basenames" AND t.platform != "ens";
+  // DELETE e FROM vertex2delete:s-((<Reverse_Resolve):e)-Identities:t WHERE s.platform != "basenames" AND s.platform != "ens";
   // DELETE e FROM vertex2delete:s-((<Proof_Forward):e)-Identities:t;
   // DELETE e FROM vertex2delete:s-((<Proof_Backward):e)-Identities:t;
 }
@@ -582,28 +589,31 @@ CREATE OR REPLACE QUERY find_identity_graph_resolve(STRING platform, STRING iden
   ListAccum<STRING> @@edge_type = ["Proof_Forward", "Proof_Backward", "Hold_Identity", "Resolve", "Reverse_Resolve"];
 
   vset = SELECT v FROM Identities:v-((PartOfIdentitiesGraph>):e)-identities_graph LIMIT 500;
+  PRINT identities_graph;
   PRINT vset;
   tmp1 = SELECT v1 FROM vset:v1-((Proof_Forward>|Proof_Backward>):e1)-vset:v2
           ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Proof"), v1.@degree += 1, v2.@degree += 1;
   tmp2 = SELECT v1 FROM vset:v1-((<Proof_Forward|<Proof_Backward):e2)-vset:v2
         ACCUM @@edges += IdentityConnection(v2, v1, e2.source, "Proof"), v1.@degree += 1, v2.@degree += 1;
   tmp4 = SELECT v1  FROM vset:v1-((Hold_Identity>):e1)-vset:i-((Resolve>):e2)-vset:v2
-        WHERE i.platform != "genome" AND i.platform != "ens" AND i.platform != "sns"
+        WHERE i.platform != "genome" AND i.platform != "ens" AND i.platform != "sns" AND i.platform != "basenames"
         ACCUM @@edges += IdentityConnection(v1, i, e1.source, "Hold"),
               i.@owner_address += Address(v1.platform, v1.identity), 
               i.@resolve_address += Address(v2.platform, v2.identity), v1.@degree += 1, v2.@degree += 1;
   tmp5 = SELECT v1 FROM vset:v1-((Hold_Identity>):e1)-vset:v2
-        WHERE v2.platform != "genome" AND v2.platform != "ens" AND v2.platform != "sns"
+        WHERE v2.platform != "genome" AND v2.platform != "ens" AND v2.platform != "sns" AND v2.platform != "basenames"
         ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Hold"),
               v2.@owner_address += Address(v1.platform, v1.identity), v1.@degree += 1, v2.@degree += 1;
   tmp3 = SELECT v1 FROM vset:v1-((Resolve>):r)-vset:v2
-        WHERE v1.platform == "genome" OR v1.platform == "ens" OR v1.platform == "sns"
+        WHERE v1.platform == "genome" OR v1.platform == "ens" OR v1.platform == "sns" OR v1.platform == "basenames"
         ACCUM
           @@edges += IdentityConnection(v1, v2, r.source, "Resolve"),
           v1.@resolve_address += Address(v2.platform, v2.identity), v1.@degree += 1, v2.@degree += 1;
   tmp3_1 = SELECT v1 FROM vset:v1-((Hold_Identity>):e1)-vset:v2
-        WHERE v2.platform == "genome" OR v2.platform == "ens" OR v2.platform == "sns"
-        ACCUM v2.@owner_address += Address(v1.platform, v1.identity);
+        WHERE v2.platform == "genome" OR v2.platform == "ens" OR v2.platform == "sns" OR v2.platform == "basenames"
+        ACCUM
+          @@edges += IdentityConnection(v1, v2, e1.source, "Hold"),
+          v2.@owner_address += Address(v1.platform, v1.identity), v1.@degree += 1, v2.@degree += 1;
 
   tmp6 = SELECT v1 FROM vset:v1-((Reverse_Resolve>):e1)-vset:v2
         ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Reverse_Resolve"), v1.@degree += 1, v2.@degree += 1;
@@ -689,7 +699,9 @@ CREATE OR REPLACE QUERY find_identity_graph(STRING p, INT reverse_flag=0) FOR GR
             v1.@resolve_address += Address(v2.platform, v2.identity), v1.@degree += 1, v2.@degree += 1;
     tmp3_1 = SELECT v1 FROM vset:v1-((Hold_Identity>):e1)-vset:v2
           WHERE v2.platform == "genome" OR v2.platform == "ens" OR v2.platform == "sns" OR v2.platform == "basenames"
-          ACCUM v2.@owner_address += Address(v1.platform, v1.identity);
+          ACCUM
+            @@edges += IdentityConnection(v1, v2, e1.source, "Hold"),
+            v2.@owner_address += Address(v1.platform, v1.identity), v1.@degree += 1, v2.@degree += 1;
 
     tmp6 = SELECT v1 FROM vset:v1-((Reverse_Resolve>):e1)-vset:v2
           ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Reverse_Resolve"), v1.@degree += 1, v2.@degree += 1;
@@ -720,7 +732,9 @@ CREATE OR REPLACE QUERY find_identity_graph(STRING p, INT reverse_flag=0) FOR GR
             v1.@resolve_address += Address(v2.platform, v2.identity), v1.@degree += 1, v2.@degree += 1;
     tmp3_1 = SELECT v1 FROM vset:v1-((Hold_Identity>):e1)-vset:v2
           WHERE v2.platform == "genome" OR v2.platform == "ens" OR v2.platform == "sns" OR v2.platform == "basenames"
-          ACCUM v2.@owner_address += Address(v1.platform, v1.identity);
+          ACCUM
+            @@edges += IdentityConnection(v1, v2, e1.source, "Hold"),
+            v2.@owner_address += Address(v1.platform, v1.identity), v1.@degree += 1, v2.@degree += 1;
     tmp6 = SELECT v1 FROM vset:v1-((Reverse_Resolve>):e1)-vset:v2
           ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Reverse_Resolve"), v1.@degree += 1, v2.@degree += 1;
 
@@ -749,7 +763,9 @@ CREATE OR REPLACE QUERY find_identity_graph(STRING p, INT reverse_flag=0) FOR GR
             v1.@resolve_address += Address(v2.platform, v2.identity), v1.@degree += 1, v2.@degree += 1;
     tmp3_1 = SELECT v1 FROM vset:v1-((Hold_Identity>):e1)-vset:v2
           WHERE v2.platform == "genome" OR v2.platform == "ens" OR v2.platform == "sns" OR v2.platform == "basenames"
-          ACCUM v2.@owner_address += Address(v1.platform, v1.identity);
+          ACCUM
+            @@edges += IdentityConnection(v1, v2, e1.source, "Hold"),
+            v2.@owner_address += Address(v1.platform, v1.identity), v1.@degree += 1, v2.@degree += 1;
 
     tmp6 = SELECT v1 FROM vset:v1-((Reverse_Resolve>):e1)-vset:v2
           ACCUM @@edges += IdentityConnection(v1, v2, e1.source, "Reverse_Resolve"), v1.@degree += 1, v2.@degree += 1;

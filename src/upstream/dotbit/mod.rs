@@ -202,6 +202,8 @@ async fn query_by_handle(
         method: "das_accountInfo".to_string(),
         params: vec![request_acc],
     };
+    // let json_raw = serde_json::to_string(&params).map_err(|err| Error::JSONParseError(err))?;
+    // println!("{}", json_raw);
     let json_params = serde_json::to_vec(&params)?;
 
     let client = make_client();
@@ -313,6 +315,8 @@ async fn query_reverse_record(platform: &Platform, identity: &str) -> Result<Acc
         method: "das_reverseRecord".to_string(),
         params: vec![request_params],
     };
+    let json_raw = serde_json::to_string(&params).map_err(|err| Error::JSONParseError(err))?;
+    println!("{}", json_raw);
     let json_params = serde_json::to_vec(&params)?;
 
     let client = make_client();

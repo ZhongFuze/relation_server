@@ -1,4 +1,6 @@
-use crate::upstream::dotbit::{get_req_params, CoinType, ReverseRecordRequest};
+use crate::upstream::dotbit::{
+    get_req_params, query_by_handle, query_reverse_record, CoinType, ReverseRecordRequest,
+};
 use crate::upstream::Target;
 use crate::{
     error::Error,
@@ -45,6 +47,26 @@ async fn test_dotbit_account_list() -> Result<(), Error> {
         params: vec![request_params],
     };
     let json_raw = serde_json::to_string(&params).map_err(|err| Error::JSONParseError(err))?;
+    // println!("{}", json_raw);
+    tracing::info!("params {:?}", json_raw);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_dotbit_account() -> Result<(), Error> {
+    let domain = "nykma.bit";
+    let result = query_by_handle(&Platform::Dotbit, domain).await?;
+    let json_raw = serde_json::to_string(&result).map_err(|err| Error::JSONParseError(err))?;
+    // println!("{}", json_raw);
+    tracing::info!("params {:?}", json_raw);
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_dotbit_account_reverse() -> Result<(), Error> {
+    let address = "0x9176acd39a3a9ae99dcb3922757f8af4f94cdf3c";
+    let result = query_reverse_record(&Platform::Ethereum, address).await?;
+    let json_raw = serde_json::to_string(&result).map_err(|err| Error::JSONParseError(err))?;
     // println!("{}", json_raw);
     tracing::info!("params {:?}", json_raw);
     Ok(())

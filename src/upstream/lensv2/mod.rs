@@ -369,6 +369,9 @@ async fn batch_fetch_by_wallet(target: &Target) -> Result<(TargetProcessedList, 
             }
         }
         let evm_owner = lens_profile.owned_by.address.0.to_ascii_lowercase();
+        if lens_profile.handle.is_none() {
+            continue;
+        }
         let handle_info = lens_profile.handle.clone().unwrap();
         let lens_handle = format!("{}.{}", handle_info.local_name, handle_info.namespace);
         let lens_display_name = lens_profile
